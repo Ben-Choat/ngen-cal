@@ -8,6 +8,9 @@ from datetime import datetime
 from pathlib import Path
 from abc import ABC, abstractmethod
 from .strategy import Objective
+import os
+import shutil
+import glob
 # additional constrained types
 PosInt = conint(gt=-1)
 
@@ -90,19 +93,43 @@ class EvaluationOptions(BaseModel):
             score (float): score value to save
             log (bool): writes objective information to log file if True
         """
+        # if Best_Results does not exist, then create it. Best results stored here
+        cwd = os.getcwd()
+        best_result_dir = f'{cwd}/Best_Results'
+        if not os.path.exists(best_result_dir):
+            os.mkdir(best_result_dir)
+            print(f'Created {best_result_dir}')
+
+        # define function to move output files
+        def MoveOutputs(inputDir, outputDir):
+            # copy catchment output files
+            temp_files = glob.glob(f'{cwd}/cat*csv')
+            temp_files.extend(glob.glob(f'{cwd}/nex*csv'))
+            temp_files.extend(glob.glob(f'{cwd}/flowvel*'))
+            temp_files.extend(glob.glob(f'{cwd}/tnx*csv'))
+            for file in temp_files:
+                shutil.copy(file, best_result_dir)
+            print(f'Copied results to {best_result_dir} since they are now the best')
+            
         #TODO store current_score and current_iteration?
         if self.target == 'min':
             if score <= self._best_score:
                 self._best_params_iteration = str(i)
                 self._best_score = score
+                # copy catchment output files
+                MoveOutputs(cwd, best_result_dir)
         elif self.target == 'max':
             if score >= self._best_score:
                 self._best_params_iteration = str(i)
                 self._best_score = score
+                # copy catchment output files
+                MoveOutputs(cwd, best_result_dir)
         else: #target is a specific value
             if abs( score - self.target ) <= abs(self._best_score - self.target):
                 self._best_params_iteration = str(i)
                 self._best_score = score
+                # copy catchment output files
+                MoveOutputs(cwd, best_result_dir)
         if log:
             self.write_param_log_file(i)
             self.write_objective_log_file(i, score)
