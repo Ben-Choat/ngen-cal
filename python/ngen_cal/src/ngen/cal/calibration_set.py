@@ -35,6 +35,9 @@ class CalibrationSet(Evaluatable):
         self._observed.rename('obs_flow', inplace=True)
         #observations in ft^3/s convert to m^3/s
         self._observed = self._observed * 0.028316847
+        if not os.path.exists("./Validation"):
+            os.mkdir("./Validation")
+        self._observed.to_csv("./Validation/usgs_hourly_flow_calibration.csv")
         self._output = None
         self._eval_range = self.eval_params._eval_range
     
@@ -65,18 +68,57 @@ class CalibrationSet(Evaluatable):
 
             # TODO should contributing_catchments be singular??? assuming it is for now...
             df = df.loc[self._eval_nexus.contributing_catchments[0].replace('cat', 'wb')]
+            df.to_csv('./df_nexus_contributing.csv')
             self._output = df.xs('q', level=1, drop_level=False)
             #This is a hacky way to get the time index...pass the time around???
-            tnx_file = list(Path(self._output_file).parent.glob("nex*.csv"))[0]
+
+            #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # BEN EDIT HERE to read in tnx.csv file and add to q in df
+            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+            # Check if can read in a differnt tnx file in following lines and just use it 
+            # for time index and to add to Q
+            
+            # Original work
+#            tnx_file = list(Path(self._output_file).parent.glob("nex*.csv"))[0]
+            
+            # Ben's updated work
+            tnx_file = list(Path(self._output_file).parent.glob("tnx-*.csv"))[0]
+
+            # troubleshooting
+            print(f'\ntnx_file: {tnx_file}')
+            tnx_test = pd.read_csv(tnx_file)
+            print(f'\ntnx_test: {tnx_test.head()}')
+
+
             tnx_df = pd.read_csv(tnx_file, index_col=0, parse_dates=[1], names=['ts', 'time', 'Q']).set_index('time')
-            dt_range = pd.date_range(tnx_df.index[0], tnx_df.index[-1], len(self._output.index)).round('min')
+            print(f'\ntnx_df: {tnx_df.head()}')
+            #######################
+
+            dt_range = pd.date_range(tnx_df.index[0], tnx_df.index[-1], len(self._output.index)).round('min')    
             self._output.index = dt_range
-            #this may not be strictly nessicary...I think the _evalutate will align these...
             self._output = self._output.resample('1H').first()
+
+            #this may not be strictly nessicary...I think the _evalutate will align these...
+
+            # ben adding
+            # print(f'\n\noutput_hydrograph before adding: {self._output}\n\n')
+            # print(f'tnx_df: {tnx_df}')
+            tnx_df.to_csv('./tnx_df.csv')
+            df_temp = pd.merge(self._output, tnx_df,
+                        left_index = True, right_on = 'time',
+                        how = 'right')
+            # print(f'df_temp: {df_temp}')
+            # print(f'df_temp.columns: {df_temp.columns}')
+            print(f'df_temp[self._output.name]: {df_temp[self._output.name]}\ndf_temp[Q]: {df_temp["Q"]}')
+            self._output = df_temp[self._output.name] + df_temp['Q']
+            # print(f'\n\noutput_hydrograph after adding: {self._output}\n\n')
+
+
+            self._output.index.name = None
+            # print(f'self._output after resampling: {self._output}')
             self._output.name="sim_flow"
-            # self._output = read_csv(self._output_file, usecols=["Time", self._output_var], parse_dates=['Time'], index_col='Time', dtype={self._output_var: 'float64'})
-            # self._output.rename(columns={self._output_var:'sim_flow'}, inplace=True)
             hydrograph = self._output
+            hydrograph.to_csv('./hydrograph_obj_test.csv')
 
         except FileNotFoundError:
             print("{} not found. Current working directory is {}".format(self._output_file, os.getcwd()))

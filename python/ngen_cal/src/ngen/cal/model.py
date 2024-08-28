@@ -107,6 +107,9 @@ class EvaluationOptions(BaseModel):
             temp_files.extend(glob.glob(f'{cwd}/nex*csv'))
             temp_files.extend(glob.glob(f'{cwd}/flowvel*'))
             temp_files.extend(glob.glob(f'{cwd}/tnx*csv'))
+            # troubleshooting
+            temp_files.extend([f'{cwd}/df_Q_from_objective_func.csv'])
+            temp_files.extend([f'{cwd}/df_nexus_contributing.csv'])
             for file in temp_files:
                 shutil.copy(file, best_result_dir)
             print(f'Copied results to {best_result_dir} since they are now the best')
