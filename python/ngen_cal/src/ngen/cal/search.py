@@ -29,6 +29,7 @@ def _objective_func(simulated_hydrograph, observed_hydrograph, objective, eval_r
         df = df.loc[eval_range[0]:eval_range[1]]
     #print( df )
     #Evaluate custom objective function providing simulated, observed series
+    df.to_csv('./df_Q_from_objective_func.csv')
     return objective(df['obs_flow'], df['sim_flow'])
 
 def _execute(meta: 'Agent'):
